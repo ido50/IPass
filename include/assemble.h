@@ -2,7 +2,7 @@
 #define MAXMSG 20
 
 struct error *assemble(char *name);
-void add_error(struct error *err);
+void add_error(int line, char *msg);
 
 struct error {
 	unsigned int line;

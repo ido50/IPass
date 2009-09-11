@@ -16,16 +16,11 @@ struct error *assemble(char *name) {
 
 	/* check this source file exists */
 	if ((fp = fopen(source, "r")) == NULL) {
-		struct error *new = (struct error *)malloc(sizeof(struct error));
 		char *msg = (char *)malloc(MAXMSG);
-
-		new->line = 0;
-		new->next = NULL;
 		strcpy(msg, "can't open ");
 		strcat(msg, source);
-		new->msg = msg;
 
-		add_error(new);
+		add_error(0, msg);
 	} else {
 		
 	}
@@ -33,7 +28,12 @@ struct error *assemble(char *name) {
 	return tail;
 }
 
-void add_error(struct error *err) {
+void add_error(int line, char *msg) {
+	struct error *err = (struct error *)malloc(sizeof(struct error));
+	err->line = line;
+	err->msg = msg;
+	err->next = NULL;
+
 	if (head == 0) {
 		head = err;
 		tail = err;
