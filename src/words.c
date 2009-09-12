@@ -3,6 +3,18 @@
 #include <stdlib.h>
 #include "assembly.h"
 
+unsigned short op_type(char *name) {
+	if (is_inum(name))
+		return IMM;
+	else if (is_register(name))
+		return DIRREG;
+	else if (is_ilabel(name))
+		return INDIR;
+	else if (legal_label(name))
+		return DIR;
+	return -1;
+}
+
 int is_num(char *word) {
 	if (*word == '+' || *word == '-')
 		word++;
@@ -16,8 +28,20 @@ int is_num(char *word) {
 	return 1;
 }
 
+int is_inum(char *word) {
+	if (word[0] == '#' && is_num(++word))
+		return 1;
+	return 0;
+}
+
 int is_label(char *word) {
 	if (word[strlen(word)-1] == ':')
+		return 1;
+	return 0;
+}
+
+int is_ilabel(char *word) {
+	if (word[0] == '@' && legal_label(++word))
 		return 1;
 	return 0;
 }
@@ -89,6 +113,19 @@ int is_entry(char *word) {
 int is_extern(char *word) {
 	if (strcmp(word, ".extern") == 0)
 		return 1;
+	return 0;
+}
+
+int is_register(char *word) {
+	if (strlen(word) == 2 && word[0] == 'r' && isdigit(word[1]))
+		return 1;
+	return 0;
+}
+
+int legal_register(char *word) {
+	if (is_register(word))
+		if (word[1] >= 0 && word[1] <= 7)
+			return 1;
 	return 0;
 }
 

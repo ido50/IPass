@@ -1,10 +1,16 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include "queue.h"
 
-static struct item *head, *tail;
+struct queue *new_queue() {
+	struct queue *q = (struct queue *)malloc(sizeof(struct queue));
+	q->head = NULL;
+	q->tail = NULL;
+	return q;
+}
 
-int is_empty() {
-	if (head == 0 && tail == 0)
+int is_empty(struct queue *q) {
+	if (q->head == NULL && q->tail == NULL)
 		return 1;
 	return 0;
 }
@@ -17,59 +23,87 @@ struct item *new_item(void *data, struct item *next, struct item *prev) {
 	return new;
 }
 
-struct item *push(void *data) {
-	struct item *new = new_item( data, 0, head );
-	if (is_empty())
-		tail = new;
-	else
-		head->next = new;
-	head = new;
-
-	return new;
-}
-
-struct item *unshift(void *data) {
-	struct item *new = new_item( data, tail, 0 );
-	if (is_empty())
-		head = new;
-	else
-		tail->prev = new;
-	tail = new;
-
-	return new;
-}
-
-struct item *shift() {
-	if (is_empty())
-		return 0;
+struct item *push(struct queue *q, void *data) {
+	struct item *new = new_item(data, NULL, q->head);
+	if (is_empty(q))
+		q->tail = new;
 	else {
-		struct item *new_tail = tail->next;
-		struct item *old_tail = tail;
-		new_tail->prev = 0;
-		tail = new_tail;
+		struct item *head = q->head;
+		head->next = new;
+	}
+	q->head = new;
+
+	return new;
+}
+
+struct item *unshift(struct queue *q, void *data) {
+	struct item *new = new_item(data, q->tail, NULL);
+	if (is_empty(q))
+		q->head = new;
+	else {
+		struct item *tail = q->tail;
+		tail->prev = new;
+	}
+	q->tail = new;
+
+	return new;
+}
+
+int queue_length(struct queue *q) {
+	struct item *it = q->tail;
+	int i = 0;
+	while (it != NULL) {
+		i++;
+		it = it->next;
+	}
+	return i;
+}
+
+struct item *shift(struct queue *q) {
+	if (is_empty(q))
+		return NULL;
+	else {
+		struct item *new_tail = q->tail;
+		struct item *old_tail = q->tail;
+
+		if (new_tail->next != NULL) {
+			new_tail = new_tail->next;
+			new_tail->prev = NULL;
+			q->tail = new_tail;
+		} else {
+			q->tail = NULL;
+			q->head = NULL;
+		}
 		return old_tail;
 	}
 }
 
-struct item *pop() {
-	if (is_empty())
-		return 0;
+struct item *pop(struct queue *q) {
+	if (is_empty(q))
+		return NULL;
 	else {
-		struct item *new_head = head->prev;
-		struct item *old_head = head;
-		new_head->next = 0;
-		head = new_head;
+		struct item *new_head = q->head;
+		struct item *old_head = q->head;
+
+		if (new_head->prev != NULL) {
+			new_head = new_head->prev;
+			new_head->next = NULL;
+			q->head = new_head;
+		} else {
+			q->tail = NULL;
+			q->head = NULL;
+		}
 		return old_head;
 	}
 }
 
-struct item *get_tail() {
-	return tail;
+struct item *get_tail(struct queue *q) {
+	return q->tail;
 }
 
-void clear_queue() {
-	if (is_empty() == 0) {
-		head = 0;
-		tail = 0;
+void clear_queue(struct queue *q) {
+	if (is_empty(q) == 0) {
+		q->head = NULL;
+		q->tail = NULL;
 	}
 }

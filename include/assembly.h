@@ -1,8 +1,8 @@
 #define NUMCMDS 16
-#define IMM 00
-#define DIR 01
-#define INDIR 03
-#define DIRREG 04
+#define IMM 0
+#define DIR 1
+#define INDIR 3
+#define DIRREG 4
 #define MAXLINE 80
 #define MAXLABEL 30
 
@@ -29,7 +29,9 @@ int parse_word(char *);
 int legal_word(char *, unsigned short);
 
 int is_num(char *);
+int is_inum(char *);
 int is_label(char *);
+int is_ilabel(char *);
 int is_string(char *);
 int is_data_inst(char *);
 int is_string_inst(char *);
@@ -39,7 +41,11 @@ int legal_cmd(char *);
 int legal_label(char *);
 int is_entry(char *);
 int is_extern(char *);
+int is_register(char *);
+int legal_register(char *);
 char *label_name(char *);
+
+unsigned short op_type(char *name);
 
 extern struct command commands[NUMCMDS];
 

@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
 			exit(1);
 		} else {
 			/* ipass executed successfully, print success message */
-			printf("ipass: %s syntax OK.\n", *argv);
+			printf("ipass: %s.as syntax OK.\n", *argv);
 		}
 	}		
 	exit(0);

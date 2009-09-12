@@ -6,8 +6,14 @@
 #include "assembly.h"
 #include "queue.h"
 
-struct error *tail = NULL;
-struct error *head = NULL;
+static struct error *tail;
+static struct error *head;
+
+static struct queue *wordq;
+static struct queue *cmdq;
+static struct queue *dataq;
+static struct queue *entq;
+static struct queue *extq;
 
 struct error *assemble(char *name) {
 	FILE *fp;			/* source file handler */
@@ -25,20 +31,42 @@ struct error *assemble(char *name) {
 		add_error(0, msg);
 	} else {
 		char *line = (char *)malloc(MAXLINE);
+		struct item *tail = (struct item *)malloc(sizeof(struct item));
 		int i = 0;
+
+		wordq = new_queue();
+		cmdq = new_queue();
+		dataq = new_queue();
+		entq = new_queue();
+		extq = new_queue();
+
 		while (fgets(line, MAXLINE, fp) != NULL) {
 			i++;
 			if (*line != ';')
 				break_line(line, i);
 		}
 		fclose(fp);
+
+		tail = get_tail(dataq);
+		while (tail != 0) {
+			char *data = (char *)tail->data;
+			if (strlen(data) > 1) {
+				while (*data != '\0') {
+					printf("%.6o\n", *data);
+					data++;
+				}
+				printf("%.6o\n", 0);
+			} else
+				printf("%.6o\n", atoi(data));
+			tail = tail->next;
+		}
 	}
 
 	return tail;
 }
 
 void break_line(char *line, int lnum) {
-	clear_queue();
+	clear_queue(wordq);
 	while (*line != '\0') {
 		char *word = (char *)malloc(MAXLINE);
 		if (*line == ',') {
@@ -51,7 +79,7 @@ void break_line(char *line, int lnum) {
 			}
 		}
 		if (strlen(word) > 0)
-			push(word);
+			push(wordq, word);
 		else
 			line++;
 	}
@@ -59,7 +87,7 @@ void break_line(char *line, int lnum) {
 }
 
 void parse_line(int lnum) {
-	struct item *it = shift();
+	struct item *it = shift(wordq);
 	char *word = (char *)it->data;
 	char *label = (char *)malloc(MAXLABEL);
 
@@ -73,13 +101,13 @@ void parse_line(int lnum) {
 			label = NULL;
 		}
 	} else
-		it->next = unshift(word);
+		unshift(wordq, word);
 
-	if (it->next == 0)
+	if (is_empty(wordq))
 		add_error(lnum, "void line");
 	else {
-		it = it->next;
-		word = (char *)it->data;
+		struct item *next = shift(wordq);
+		word = (char *)next->data;
 		if (is_cmd(word)) {
 			/* check cmd name is legal */
 			if (legal_cmd(word) == 0) {
@@ -90,19 +118,54 @@ void parse_line(int lnum) {
 			} else {
 				/* get operands and check that they are legal */
 				/* do something with the label */
+				int expect_comma = 0;
+				struct command *cmd = find_cmd(word);
+
+				if (cmd->src_op && cmd->dest_op)
+					expect_comma = 1;
+
+				if (cmd->src_op) {
+					/* get source operand */
+					struct item *source = shift(wordq);
+					if (source == NULL)
+						/* there is no source, which means there is no destination too */
+						add_error(lnum, "source and destination operands missing");
+					else {
+						/* do something with the source */
+						char *src_n = (char *)source->data;
+						unsigned short src_t = op_type(src_n);
+					}
+				}
+				if (cmd->dest_op) {
+					struct item *dest = (struct item *)malloc(sizeof(struct item));
+
+					if (expect_comma) {
+						/* get comma */
+						struct item *comma = shift(wordq);
+						if (comma == NULL || ! is_comma((char *)comma->data))
+							add_error(lnum, "missing comma and/or destination operand");
+					}
+
+					/* get destination operand */
+					if ((dest = shift(wordq)) == NULL)
+						add_error(lnum, "destination operand missing");
+					else {
+						/* do smoething with the destination */
+						char *dest_n = (char *)dest->data;
+						unsigned short dest_t = op_type(dest_n);
+					}
+				}
 			}
 		} else if (is_data_inst(word)) {
 			/* get data and check that it's legal */
 			int expect_num = 1;
 			int expect_comma = 0;
-			if (it->next == 0)
+			if (is_empty(wordq))
 				add_error(lnum, "no data given");
 			else {
-				while (it->next != 0) {
-					char *data = (char *)malloc(MAXLINE);
-					it = it->next;
-					data = (char *)it->data;
-						
+				while (! is_empty(wordq)) {
+					struct item *next = shift(wordq);
+					char *data = (char *)next->data;
 					if (expect_num && is_num(data) == 0) {
 						char *msg = (char *)malloc(MAXMSG);
 						strcat(msg, data);
@@ -110,33 +173,38 @@ void parse_line(int lnum) {
 						add_error(lnum, msg);
 					} else if (expect_num) {
 						/* do something with this number */
+						push(dataq, data);
 						expect_comma = 1;
 						expect_num = 0;
 					} else if (expect_comma && is_comma(data) == 0) {
 						/* check if there are no more words */
-						if (it->next != 0) {
-							add_error(lnum, "i was expecting a comma or end of line.");
+						if (! is_empty(wordq)) {
+							add_error(lnum, "i was expecting a comma or end of line");
 							expect_num = 0;
 							expect_comma = 0;
 						}
 					} else if (expect_comma) {
 						expect_num = 1;
 						expect_comma = 0;
+						if (is_empty(wordq))
+							add_error(lnum, "no number given after comma");
 					}
 				}
 			}
 		} else if (is_string_inst(word)) {
 			/* get string and check that it's legal */
-			if (it->next != 0) {
-				char *string = (char *)malloc(MAXLINE);
-				it = it->next;
-				string = (char *)it->data;
+			struct item *next = shift(wordq);
+			if (next == NULL)
+				add_error(lnum, "no string given");
+			else {
+				char *string = (char *)next->data;
 				if (is_string(string)) {
 					/* remove the '"' signs from the string */
 					char *str = (char *)malloc(MAXLINE);
 					string++;
 					strncpy(str, string, strlen(string)-1);
 					/* code that string */
+					push(dataq, str);
 				} else {
 					/* add an error */
 					char *msg = (char *)malloc(MAXMSG);
@@ -144,26 +212,23 @@ void parse_line(int lnum) {
 					strcat(msg, " is not a valid string");
 					add_error(lnum, msg);
 				}
-			} else {
-				add_error(lnum, "no string given");
 			}
 		} else if (is_entry(word) || is_extern(word)) {
 			/* get a label and check it exists */
-			if (it->next == 0)
+			struct item *next = shift(wordq);
+			if (next == NULL)
 				add_error(lnum, "missing label name");
 			else {
-				char *label = (char *)malloc(MAXLABEL);
-				it = it->next;
-				label = (char *)it->data;
+				char *label = (char *)next->data;
 				if (legal_label(label) == 0) {
 					char *msg = (char *)malloc(MAXMSG);
 					strcat(msg, label);
-					strcat(msg, " is not a valid label.");
+					strcat(msg, " is not a valid label");
 					add_error(lnum, msg);
 				} else {
 					/* do something with that label */
 				}
-				if (it->next != 0)
+				if (! is_empty(wordq))
 					add_error(lnum, "invalid number of labels");
 			}
 		}
@@ -186,8 +251,8 @@ void add_error(int line, char *msg) {
 	}
 }
 
-void print_queue() {
-	struct item *tail = get_tail();
+void print_queue(struct queue *q) {
+	struct item *tail = get_tail(q);
 	while (tail != 0) {
 		printf("%s ", (char *)tail->data);
 		tail = tail->next;
