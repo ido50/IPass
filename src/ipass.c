@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include "assemble.h"
+#include "ipass.h"
 
 extern struct error *tail;
 
@@ -18,10 +18,14 @@ int main(int argc, char *argv[]) {
 		struct error *errors = assemble(*++argv);
 		if (errors != NULL) {
 			/* errors were encountered, print them */
-			printf("ipass: the following errors were encountered when assembling %s:\n", *argv);
-			while (errors != NULL) {
-				printf("[%d]: %s\n", errors->line, errors->msg);
-				errors = errors->next;
+			if (errors->line == 0) {
+				printf("ipass: %s\n", errors->msg);
+			} else {
+				printf("ipass: the following errors were encountered when assembling %s:\n", *argv);
+				while (errors != NULL) {
+					printf("%s[%d]: %s\n", *argv, errors->line, errors->msg);
+					errors = errors->next;
+				}
 			}
 			exit(1);
 		} else {

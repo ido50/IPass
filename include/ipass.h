@@ -1,8 +1,8 @@
 #define MAXNAME 25
-#define MAXMSG 20
+#define MAXMSG 80
 
-struct error *assemble(char *name);
-void add_error(int line, char *msg);
+struct error *assemble(char *);
+void add_error(int, char *);
 
 struct error {
 	unsigned int line;
