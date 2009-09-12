@@ -1,6 +1,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include "assembly.h"
 
 int is_num(char *word) {
@@ -28,11 +29,9 @@ int legal_label(char *word) {
 		return 0;
 	if (isalpha(*word) == 0)
 		return 0;
-	word++;
-	while (*++word != ':') {
+	while (*++word != ':')
 		if (isalnum(*word) == 0)
 			return 0;
-	}
 
 	return 1;
 }

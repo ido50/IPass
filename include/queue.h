@@ -10,6 +10,7 @@ void push(void *data);
 struct item *new(void *, struct item *, struct item *);
 struct item *pop();
 struct item *shift();
+struct item *get_tail();
 
 int is_empty();
 void clear_queue();

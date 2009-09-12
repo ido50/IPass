@@ -38,3 +38,5 @@ int legal_label(char *);
 char *label_name(char *);
 
 extern struct command commands[NUMCMDS];
+
+void print_queue();

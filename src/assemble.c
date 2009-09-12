@@ -51,7 +51,7 @@ void break_line(char *line, int lnum) {
 			}
 		}
 		if (strlen(word) > 0)
-			unshift(word);
+			push(word);
 		else
 			line++;
 	}
@@ -59,80 +59,98 @@ void break_line(char *line, int lnum) {
 }
 
 void parse_line(int lnum) {
-	struct item *tail = shift();
-	char *word = (char *)tail->data;
+	struct item *it = shift();
+	char *word = (char *)it->data;
 	char *label = (char *)malloc(MAXLABEL);
 
 	if (is_label(word)) {
 		label = label_name(word);
-		if (legal_label(label) == 0) {
+		if (legal_label(word) == 0) {
 			char *msg = (char *)malloc(MAXMSG);
 			strcat(msg, label);
 			strcat(msg, " is not a valid label.");
 			add_error(lnum, msg);
 			label = NULL;
 		}
+	} else {
+		unshift(word);
 	}
 
-	tail = shift();
-	word = (char *)tail->data;
-	if (is_cmd(word)) {
-		/* check cmd name is legal */
-		if (legal_cmd(word) == 0) {
-			char *msg = (char *)malloc(MAXMSG);
-			strcat(msg, word);
-			strcat(msg, " is not a valid command.");
-			add_error(lnum, msg);
-		} else {
-			/* get operands and check that they are legal */
-			/* do something with the label */
-		}
-	} else if (is_data_inst(word)) {
-		/* get data and check that it's legal */
-		int expect_num = 1;
-		while (expect_num) {
-			struct item *it = shift();
-			char *data = (char *)it->data;
-			
-			if (is_num(data) == 0) {
+	if (it->next == 0)
+		add_error(lnum, "void line");
+	else {
+		it = it->next;
+		word = (char *)it->data;
+		if (is_cmd(word)) {
+			/* check cmd name is legal */
+			if (legal_cmd(word) == 0) {
 				char *msg = (char *)malloc(MAXMSG);
-				strcat(msg, data);
-				strcat(msg, " is not a valid number.");
+				strcat(msg, word);
+				strcat(msg, " is not a valid command.");
 				add_error(lnum, msg);
 			} else {
+				/* get operands and check that they are legal */
+				/* do something with the label */
 			}
-			it = shift();
-			data = (char *)it->data;
-			if (data == NULL)
-				expect_num = 0;
-			else if (is_comma(data))
-				expect_num = 1;
+		} else if (is_data_inst(word)) {
+			/* get data and check that it's legal */
+			int expect_num = 1;
+			int expect_comma = 0;
+			if (it->next == 0)
+				add_error(lnum, "no data given");
 			else {
-				char *msg = (char *)malloc(MAXMSG);
-				strcat(msg, "can't understand ");
-				strcat(msg, data);
-				strcat(msg, ", was expecting a comma or new line");
-				add_error(lnum, msg);
+				while (it->next != 0) {
+					char *data = (char *)malloc(MAXLINE);
+					it = it->next;
+					data = (char *)it->data;
+						
+					if (expect_num && is_num(data) == 0) {
+						char *msg = (char *)malloc(MAXMSG);
+						strcat(msg, data);
+						strcat(msg, " is not a valid number.");
+						add_error(lnum, msg);
+					} else if (expect_num) {
+						/* do something with this number */
+						expect_comma = 1;
+						expect_num = 0;
+					} else if (expect_comma && is_comma(data) == 0) {
+						/* check if there are no more words */
+						if (it->next != 0) {
+							add_error(lnum, "i was expecting a comma or end of line.");
+							expect_num = 0;
+							expect_comma = 0;
+						}
+					} else if (expect_comma) {
+						expect_num = 1;
+						expect_comma = 0;
+					}
+				}
 			}
-		}
-	} else if (is_string_inst(word)) {
-		/* get string and check that it's legal */
-		struct item *it = shift();
-		char *string = (char *)it->data;
-		if (is_string(string)) {
-			/* remove the '"' signs from the string */
-			char *str = (char *)malloc(MAXLINE);
-			string++;
-			strncpy(str, string, strlen(string)-1);
-			/* code that string */
-		} else {
-			/* add an error */
-			char *msg = (char *)malloc(MAXMSG);
-			strcat(msg, string);
-			strcat(msg, " is not a valid string");
-			add_error(lnum, msg);
+		} else if (is_string_inst(word)) {
+			/* get string and check that it's legal */
+			if (it->next != 0) {
+				char *string = (char *)malloc(MAXLINE);
+				it = it->next;
+				string = (char *)it->data;
+				if (is_string(string)) {
+					/* remove the '"' signs from the string */
+					char *str = (char *)malloc(MAXLINE);
+					string++;
+					strncpy(str, string, strlen(string)-1);
+					/* code that string */
+				} else {
+					/* add an error */
+					char *msg = (char *)malloc(MAXMSG);
+					strcat(msg, string);
+					strcat(msg, " is not a valid string");
+					add_error(lnum, msg);
+				}
+			} else {
+				add_error(lnum, "no string given");
+			}
 		}
 	}
+
 }
 
 void add_error(int line, char *msg) {
@@ -148,4 +166,13 @@ void add_error(int line, char *msg) {
 		head->next = err;
 		head = err;
 	}
+}
+
+void print_queue() {
+	struct item *tail = get_tail();
+	while (tail != 0) {
+		printf("%s ", (char *)tail->data);
+		tail = tail->next;
+	}
+	printf("\n");
 }

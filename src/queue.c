@@ -59,6 +59,10 @@ struct item *pop() {
 	}
 }
 
+struct item *get_tail() {
+	return tail;
+}
+
 void clear_queue() {
 	if (is_empty() == 0) {
 		head = 0;

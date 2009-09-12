@@ -1,0 +1,65 @@
+	if (is_empty())
+		add_error(lnum, "void line");
+	else {
+		struct item *next = shift();
+		word = (char *)next->data;
+		if (is_cmd(word)) {
+			/* check cmd name is legal */
+			if (legal_cmd(word) == 0) {
+				char *msg = (char *)malloc(MAXMSG);
+				strcat(msg, word);
+				strcat(msg, " is not a valid command.");
+				add_error(lnum, msg);
+			} else {
+				/* get operands and check that they are legal */
+				/* do something with the label */
+			}
+		} else if (is_data_inst(word)) {
+			/* get data and check that it's legal */
+			int expect_num = 1;
+			while (expect_num) {
+				struct item *it = shift();
+				char *data = (char *)it->data;
+				
+				if (is_num(data) == 0) {
+					char *msg = (char *)malloc(MAXMSG);
+					strcat(msg, data);
+					strcat(msg, " is not a valid number.");
+					add_error(lnum, msg);
+				} else {
+				}
+				if (is_empty() == 0) {
+					struct item *next = shift();
+					data = (char *)next->data;
+					if (data == NULL)
+						expect_num = 0;
+					else if (is_comma(data))
+						expect_num = 1;
+					else {
+						char *msg = (char *)malloc(MAXMSG);
+						strcat(msg, "can't understand ");
+						strcat(msg, data);
+						strcat(msg, ", was expecting a comma or new line");
+						add_error(lnum, msg);
+					}
+				}
+			}
+		} else if (is_string_inst(word)) {
+			/* get string and check that it's legal */
+			struct item *it = shift();
+			char *string = (char *)it->data;
+			if (is_string(string)) {
+				/* remove the '"' signs from the string */
+				char *str = (char *)malloc(MAXLINE);
+				string++;
+				strncpy(str, string, strlen(string)-1);
+				/* code that string */
+			} else {
+				/* add an error */
+				char *msg = (char *)malloc(MAXMSG);
+				strcat(msg, string);
+				strcat(msg, " is not a valid string");
+				add_error(lnum, msg);
+			}
+		}
+	}
