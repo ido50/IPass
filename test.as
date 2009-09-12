@@ -8,5 +8,7 @@ LOOP:	jmp	END
 	inc	r2
 	bne	@LOOP
 END:	hlt
+USELESS: .entry HI
 STR:	.string "abcdef"
 LENGTH:	.data	6
+	.extern HELLO

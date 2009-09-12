@@ -4,8 +4,8 @@ struct item {
 	struct item *prev;
 };
 
-void unshift(void *data);
-void push(void *data);
+struct item *unshift(void *data);
+struct item *push(void *data);
 
 struct item *new(void *, struct item *, struct item *);
 struct item *pop();

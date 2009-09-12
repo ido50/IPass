@@ -9,6 +9,8 @@
 struct command {
 	char name[3];
 	unsigned short code;
+	unsigned short src_op;
+	unsigned short dest_op;
 	unsigned short src_imm;
 	unsigned short src_dir;
 	unsigned short src_indir;
@@ -35,6 +37,8 @@ int is_comma(char *);
 int is_cmd(char *);
 int legal_cmd(char *);
 int legal_label(char *);
+int is_entry(char *);
+int is_extern(char *);
 char *label_name(char *);
 
 extern struct command commands[NUMCMDS];

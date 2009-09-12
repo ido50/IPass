@@ -65,16 +65,15 @@ void parse_line(int lnum) {
 
 	if (is_label(word)) {
 		label = label_name(word);
-		if (legal_label(word) == 0) {
+		if (legal_label(label) == 0) {
 			char *msg = (char *)malloc(MAXMSG);
 			strcat(msg, label);
 			strcat(msg, " is not a valid label.");
 			add_error(lnum, msg);
 			label = NULL;
 		}
-	} else {
-		unshift(word);
-	}
+	} else
+		it->next = unshift(word);
 
 	if (it->next == 0)
 		add_error(lnum, "void line");
@@ -147,6 +146,25 @@ void parse_line(int lnum) {
 				}
 			} else {
 				add_error(lnum, "no string given");
+			}
+		} else if (is_entry(word) || is_extern(word)) {
+			/* get a label and check it exists */
+			if (it->next == 0)
+				add_error(lnum, "missing label name");
+			else {
+				char *label = (char *)malloc(MAXLABEL);
+				it = it->next;
+				label = (char *)it->data;
+				if (legal_label(label) == 0) {
+					char *msg = (char *)malloc(MAXMSG);
+					strcat(msg, label);
+					strcat(msg, " is not a valid label.");
+					add_error(lnum, msg);
+				} else {
+					/* do something with that label */
+				}
+				if (it->next != 0)
+					add_error(lnum, "invalid number of labels");
 			}
 		}
 	}

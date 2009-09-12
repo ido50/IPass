@@ -17,22 +17,26 @@ struct item *new_item(void *data, struct item *next, struct item *prev) {
 	return new;
 }
 
-void push(void *data) {
+struct item *push(void *data) {
 	struct item *new = new_item( data, 0, head );
 	if (is_empty())
 		tail = new;
 	else
 		head->next = new;
 	head = new;
+
+	return new;
 }
 
-void unshift(void *data) {
+struct item *unshift(void *data) {
 	struct item *new = new_item( data, tail, 0 );
 	if (is_empty())
 		head = new;
 	else
 		tail->prev = new;
 	tail = new;
+
+	return new;
 }
 
 struct item *shift() {

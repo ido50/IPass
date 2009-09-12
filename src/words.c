@@ -1,7 +1,6 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
-#include <stdio.h>
 #include "assembly.h"
 
 int is_num(char *word) {
@@ -24,12 +23,11 @@ int is_label(char *word) {
 }
 
 int legal_label(char *word) {
-	if (strlen(word) > (MAXLABEL + 1))
-		/* including the ':' sign */
+	if (strlen(word) > MAXLABEL)
 		return 0;
 	if (isalpha(*word) == 0)
 		return 0;
-	while (*++word != ':')
+	while (*++word != 0)
 		if (isalnum(*word) == 0)
 			return 0;
 
@@ -52,10 +50,7 @@ int is_string(char *word) {
 }
 
 int is_cmd(char *word) {
-	if (strlen(word) == 3 &&
-	    word[0] >= 'a' && word[0] <= 'z' &&
-	    word[1] >= 'a' && word[1] <= 'z' &&
-	    word[2] >= 'a' && word[2] <= 'z')
+	if (strlen(word) == 3 && isalpha(word[0]) && isalpha(word[1]) && isalpha(word[2]))
 		return 1;
 
 	return 0;
@@ -81,6 +76,18 @@ int is_string_inst(char *word) {
 
 int is_comma(char *word) {
 	if (strcmp(word, ",") == 0)
+		return 1;
+	return 0;
+}
+
+int is_entry(char *word) {
+	if (strcmp(word, ".entry") == 0)
+		return 1;
+	return 0;
+}
+
+int is_extern(char *word) {
+	if (strcmp(word, ".extern") == 0)
 		return 1;
 	return 0;
 }
