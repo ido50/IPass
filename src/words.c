@@ -1,5 +1,6 @@
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 #include "assembly.h"
 
 int is_num(char *word) {
@@ -21,6 +22,30 @@ int is_label(char *word) {
 	return 0;
 }
 
+int legal_label(char *word) {
+	if (strlen(word) > (MAXLABEL + 1))
+		/* including the ':' sign */
+		return 0;
+	if (isalpha(*word) == 0)
+		return 0;
+	word++;
+	while (*++word != ':') {
+		if (isalnum(*word) == 0)
+			return 0;
+	}
+
+	return 1;
+}
+
+char *label_name(char *word) {
+	if (is_label(word)) {
+		char *name = (char *)malloc(MAXLABEL);
+		strncpy(name, word, strlen(word)-1);
+		return name;
+	}
+	return NULL;
+}
+
 int is_string(char *word) {
 	if (word[0] == '"' && word[strlen(word)-1] == '"')
 		return 1;
@@ -34,6 +59,12 @@ int is_cmd(char *word) {
 	    word[2] >= 'a' && word[2] <= 'z')
 		return 1;
 
+	return 0;
+}
+
+int legal_cmd(char *word) {
+	if (find_cmd(word) != NULL)
+		return 1;
 	return 0;
 }
 
@@ -71,28 +102,4 @@ int parse_word(char *word) {
 	else if (is_comma(word))
 		return 8;
 	return 5;
-}
-
-int legal_word(char *word, unsigned short new_state) {
-	if (new_state == 1) {
-		/* a label */
-		if (strlen(word) > 31)
-			/* including the ':' sign */
-			return 0;
-		if (isalpha(*word) == 0)
-			return 0;
-		word++;
-		while (*++word != ':') {
-			if (isalnum(*word) == 0)
-				return 0;
-		}
-
-		return 1;
-	} else if (new_state == 2) {
-		if (find_cmd(word) != NULL)
-			return 1;
-		return 0;
-	}
-
-	return 0;
 }

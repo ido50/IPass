@@ -4,6 +4,7 @@
 #include <ctype.h>
 #include "ipass.h"
 #include "assembly.h"
+#include "queue.h"
 
 struct error *tail = NULL;
 struct error *head = NULL;
@@ -28,7 +29,7 @@ struct error *assemble(char *name) {
 		while (fgets(line, MAXLINE, fp) != NULL) {
 			i++;
 			if (*line != ';')
-				parse_line(line, i);
+				break_line(line, i);
 		}
 		fclose(fp);
 	}
@@ -36,12 +37,10 @@ struct error *assemble(char *name) {
 	return tail;
 }
 
-void parse_line(char *line, int lnum) {
-	unsigned short cur_state = 0;
-	unsigned short line_state = 0;
+void break_line(char *line, int lnum) {
+	clear_queue();
 	while (*line != '\0') {
 		char *word = (char *)malloc(MAXLINE);
-		unsigned short new_state = 0;
 		if (*line == ',') {
 			strncat(word, line, 1);
 			line++;
@@ -51,35 +50,87 @@ void parse_line(char *line, int lnum) {
 				line++;
 			}
 		}
-		if (strlen(word) > 0) {
-			new_state = parse_word(word);
-			if (new_state == CMD_STATE)
-				line_state = CMD_LINE;
-			else if (new_state == DATA_STATE)
-				line_state = INST_LINE;
+		if (strlen(word) > 0)
+			unshift(word);
+		else
+			line++;
+	}
+	parse_line(lnum);
+}
 
-			if (makes_sense(cur_state, new_state, line_state)) {
-				/* this shit is ok */
-				if (new_state == 1 || new_state == 2 || new_state == 5) {
-					/* we need to check that labels, commands and operands are legal */
-					if (legal_word(word, new_state) == 0) {
-						char *msg = (char *)malloc(MAXMSG);
-						strcat(msg, word);
-						strcat(msg, " is not a valid ");
-						strcat(msg, state_name(new_state));
-						add_error(lnum, msg);
-					}
-				}
-			} else {
-				/* this shit is not ok */
+void parse_line(int lnum) {
+	struct item *tail = shift();
+	char *word = (char *)tail->data;
+	char *label = (char *)malloc(MAXLABEL);
+
+	if (is_label(word)) {
+		label = label_name(word);
+		if (legal_label(label) == 0) {
+			char *msg = (char *)malloc(MAXMSG);
+			strcat(msg, label);
+			strcat(msg, " is not a valid label.");
+			add_error(lnum, msg);
+			label = NULL;
+		}
+	}
+
+	tail = shift();
+	word = (char *)tail->data;
+	if (is_cmd(word)) {
+		/* check cmd name is legal */
+		if (legal_cmd(word) == 0) {
+			char *msg = (char *)malloc(MAXMSG);
+			strcat(msg, word);
+			strcat(msg, " is not a valid command.");
+			add_error(lnum, msg);
+		} else {
+			/* get operands and check that they are legal */
+			/* do something with the label */
+		}
+	} else if (is_data_inst(word)) {
+		/* get data and check that it's legal */
+		int expect_num = 1;
+		while (expect_num) {
+			struct item *it = shift();
+			char *data = (char *)it->data;
+			
+			if (is_num(data) == 0) {
 				char *msg = (char *)malloc(MAXMSG);
-				strcat(msg, word);
-				strcat(msg, " is illegal in this context");
+				strcat(msg, data);
+				strcat(msg, " is not a valid number.");
+				add_error(lnum, msg);
+			} else {
+			}
+			it = shift();
+			data = (char *)it->data;
+			if (data == NULL)
+				expect_num = 0;
+			else if (is_comma(data))
+				expect_num = 1;
+			else {
+				char *msg = (char *)malloc(MAXMSG);
+				strcat(msg, "can't understand ");
+				strcat(msg, data);
+				strcat(msg, ", was expecting a comma or new line");
 				add_error(lnum, msg);
 			}
-			cur_state = new_state;
+		}
+	} else if (is_string_inst(word)) {
+		/* get string and check that it's legal */
+		struct item *it = shift();
+		char *string = (char *)it->data;
+		if (is_string(string)) {
+			/* remove the '"' signs from the string */
+			char *str = (char *)malloc(MAXLINE);
+			string++;
+			strncpy(str, string, strlen(string)-1);
+			/* code that string */
 		} else {
-			line++;
+			/* add an error */
+			char *msg = (char *)malloc(MAXMSG);
+			strcat(msg, string);
+			strcat(msg, " is not a valid string");
+			add_error(lnum, msg);
 		}
 	}
 }

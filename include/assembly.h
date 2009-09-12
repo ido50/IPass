@@ -4,10 +4,7 @@
 #define INDIR 03
 #define DIRREG 04
 #define MAXLINE 80
-#define CMD_LINE 1
-#define INST_LINE 2
-#define CMD_STATE 2
-#define DATA_STATE 3
+#define MAXLABEL 30
 
 struct command {
 	char name[3];
@@ -24,15 +21,20 @@ struct command {
 
 void init_cmds();
 struct command *find_cmd(char *);
-void parse_line(char *, int);
+void break_line(char *, int);
+void parse_line(int);
 int parse_word(char *);
-int makes_sense(unsigned short, unsigned short, unsigned short);
 int legal_word(char *, unsigned short);
-char *state_name(unsigned short);
 
 int is_num(char *);
 int is_label(char *);
 int is_string(char *);
+int is_data_inst(char *);
+int is_string_inst(char *);
+int is_comma(char *);
 int is_cmd(char *);
+int legal_cmd(char *);
+int legal_label(char *);
+char *label_name(char *);
 
 extern struct command commands[NUMCMDS];
