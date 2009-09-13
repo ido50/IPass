@@ -15,26 +15,16 @@ int is_empty(struct queue *q) {
 	return 0;
 }
 
-struct item *new_item(void *pval, struct item *next, struct item *prev) {
+struct item *new_item(void *data, struct item *next, struct item *prev) {
 	struct item *new = (struct item *)malloc(sizeof(struct item));
-	new->pval = pval;
-	new->ival = -1;
+	new->data = data;
 	new->next = next;
 	new->prev = prev;
 	return new;
 }
 
-struct item *new_int_item(int ival, struct item *next, struct item *prev) {
-	struct item *new = (struct item *)malloc(sizeof(struct item));
-	new->ival = ival;
-	new->next = next;
-	new->pval = NULL;
-	new->prev = prev;
-	return new;
-}
-
-struct item *push(struct queue *q, void *pval) {
-	struct item *new = new_item(pval, NULL, q->head);
+struct item *push(struct queue *q, void *data) {
+	struct item *new = new_item(data, NULL, q->head);
 
 	if (is_empty(q))
 		q->tail = new;
@@ -47,36 +37,8 @@ struct item *push(struct queue *q, void *pval) {
 	return new;
 }
 
-struct item *push_int(struct queue *q, int ival) {
-	struct item *new = new_int_item(ival, NULL, q->head);
-
-	if (is_empty(q))
-		q->tail = new;
-	else {
-		struct item *head = q->head;
-		head->next = new;
-	}
-	q->head = new;
-
-	return new;
-}
-
-struct item *unshift(struct queue *q, void *pval) {
-	struct item *new = new_item(pval, q->tail, NULL);
-
-	if (is_empty(q))
-		q->head = new;
-	else {
-		struct item *tail = q->tail;
-		tail->prev = new;
-	}
-	q->tail = new;
-
-	return new;
-}
-
-struct item *unshift_int(struct queue *q, int ival) {
-	struct item *new = new_int_item(ival, q->tail, NULL);
+struct item *unshift(struct queue *q, void *data) {
+	struct item *new = new_item(data, q->tail, NULL);
 
 	if (is_empty(q))
 		q->head = new;
@@ -146,8 +108,12 @@ struct item *get_head(struct queue *q) {
 }
 
 void clear_queue(struct queue *q) {
-	if (is_empty(q) == 0) {
+	if (! is_empty(q)) {
 		q->head = NULL;
 		q->tail = NULL;
 	}
+}
+
+void del_queue(struct queue *q) {
+	free(q);
 }

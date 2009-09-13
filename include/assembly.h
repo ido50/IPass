@@ -5,6 +5,16 @@
 #define DIRREG 4
 #define MAXLINE 80
 #define MAXLABEL 30
+#define MAXNAME 25
+#define MAXMSG 80
+
+struct queue *assemble(char *);
+void add_error(char *, ...);
+
+struct error {
+	char *msg;
+	unsigned line;
+};
 
 struct command {
 	char name[3];
@@ -50,8 +60,8 @@ int op_type(char *name);
 extern struct command commands[NUMCMDS];
 
 void update_syms();
-void print_cmdq();
-void print_dataq();
+void print_syms(char *);
+void print_ob(char *);
 
 void _treat_label(char *, unsigned, int);
 int allowed(struct command *, char *, int);

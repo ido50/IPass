@@ -3,14 +3,10 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdarg.h>
-#include "ipass.h"
 #include "assembly.h"
 #include "queue.h"
 #include "symbols.h"
 #include "lines.h"
-
-static struct error *tail;
-static struct error *head;
 
 static struct queue *wordq;
 static struct queue *cmdq;
@@ -18,10 +14,11 @@ static struct queue *dataq;
 static struct queue *entq;
 static struct queue *extq;
 static struct queue *symt;
+static struct queue *errors;
 
 static unsigned ic, dc, lnum;
 
-struct error *assemble(char *name) {
+struct queue *assemble(char *name) {
 	FILE *fp;			/* source file handler */
 	char *source = (char *)malloc(MAXNAME);
 
@@ -29,21 +26,30 @@ struct error *assemble(char *name) {
 	strcpy(source, name);
 	strcat(source, ".as");
 
+	del_queue(wordq);
+	wordq = new_queue();
+	del_queue(cmdq);
+	cmdq = new_queue();
+	del_queue(dataq);
+	dataq = new_queue();
+	del_queue(entq);
+	entq = new_queue();
+	del_queue(extq);
+	extq = new_queue();
+	del_queue(symt);
+	symt = new_queue();
+	del_queue(errors);
+	errors = new_queue();
+	ic = 0;
+	dc = 0;
+	lnum = 0;
+
 	/* check this source file exists */
 	if ((fp = fopen(source, "r")) == NULL)
-		add_error(0, "ca't open ", source, "end");
+		add_error("can't open ", source, " for reading", "end");
 	else {
 		char *line = (char *)malloc(MAXLINE);
 
-		wordq = new_queue();
-		cmdq = new_queue();
-		dataq = new_queue();
-		entq = new_queue();
-		extq = new_queue();
-		symt = new_table();
-		ic = 0;
-		dc = 0;
-		lnum = 0;
 		while (fgets(line, MAXLINE, fp) != NULL) {
 			lnum++;
 			if (*line != ';')
@@ -51,12 +57,19 @@ struct error *assemble(char *name) {
 		}
 		fclose(fp);
 
-		/*update_syms();
-		print_cmdq();
-		print_dataq();*/
+		update_syms();
+
+		if (is_empty(errors)) {
+			print_syms(name);
+			print_ob(name);
+		}
+
+		free(line);
 	}
 
-	return tail;
+	free(source);
+
+	return errors;
 }
 
 void break_line(char *line) {
@@ -82,7 +95,7 @@ void break_line(char *line) {
 
 char *_get_label() {
 	struct item *it = shift(wordq);
-	char *word = (char *)it->pval;
+	char *word = (char *)it->data;
 	char *label = (char *)malloc(MAXLABEL);
 
 	if (is_label(word)) {
@@ -153,7 +166,7 @@ void _get_operand(struct codeln *cmdln, struct command *cmd, char *srcdst, int e
 	else {
 		if (expect_comma) {
 			struct item *opword = shift(wordq);
-			if (! is_comma((char *)opword->pval)) {
+			if (! is_comma((char *)opword->data)) {
 				unshift(wordq, opword);
 				add_error("missing comma between operands", "end");
 			}
@@ -164,7 +177,7 @@ void _get_operand(struct codeln *cmdln, struct command *cmd, char *srcdst, int e
 		else {
 			int type;
 			struct item *opword = shift(wordq);
-			char *name = (char *)opword->pval;
+			char *name = (char *)opword->data;
 			type = op_type(name);
 
 			_add_type(cmdln, srcdst, type);
@@ -176,6 +189,7 @@ void _get_operand(struct codeln *cmdln, struct command *cmd, char *srcdst, int e
 				struct codeln *opln = new_codeln(0);
 				struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
 				opln->imm = 1;
+				opln->type = 'r';
 
 				if (type == INDIR)
 					/* increase to get rid of the @ sign */
@@ -189,6 +203,7 @@ void _get_operand(struct codeln *cmdln, struct command *cmd, char *srcdst, int e
 			} else if (type == IMM) {
 				struct codeln *opln = new_codeln(0);
 				opln->imm = 1;
+				opln->type = 'a'; /* useless as it's the default */
 
 				/* increase to get rid of the # sign */
 				opln->opcode = atoi(++name);
@@ -223,7 +238,7 @@ void parse_line() {
 		add_error("void line", "end");
 	else {
 		struct item *next = shift(wordq);
-		char *word = (char *)next->pval;
+		char *word = (char *)next->data;
 		if (is_cmd(word)) {
 			/* check cmd name is legal */
 			if (legal_cmd(word) == 0)
@@ -234,6 +249,7 @@ void parse_line() {
 				int expect_comma = 0;
 				struct command *cmd = find_cmd(word);
 				struct codeln *cmdln = new_codeln(cmd->code);
+				cmdln->type = 'a'; /* useless as it's the default */
 
 				push(cmdq, cmdln);
 
@@ -261,7 +277,7 @@ void parse_line() {
 
 				while (! is_empty(wordq)) {
 					struct item *next = shift(wordq);
-					char *data = (char *)next->pval;
+					char *data = (char *)next->data;
 
 					if (expect_num && ! is_num(data))
 						add_error(data, " is not a valid number", "end");
@@ -298,7 +314,7 @@ void parse_line() {
 			if (next == NULL)
 				add_error("no string given", "end");
 			else {
-				char *string = (char *)next->pval;
+				char *string = (char *)next->data;
 				if (is_string(string)) {
 					/* remove the '"' signs from the string */
 					char *str = (char *)malloc(MAXLINE);
@@ -325,13 +341,14 @@ void parse_line() {
 			if (lbl == NULL)
 				add_error("missing label name", "end");
 			else {
-				char *label = (char *)lbl->pval;
+				char *label = (char *)lbl->data;
 				if (is_entry(word))
 					push(entq, label);
 				else
 					push(extq, label);
 			}
-		}
+		} else
+			add_error("unrecognized word \"", word, "\"", "end");
 	}
 }
 
@@ -339,18 +356,10 @@ void add_error(char *msg1, ...) {
 	char *i = (char *)malloc(MAXMSG);
 	char *msg = (char *)malloc(MAXMSG);
 	struct error *err = (struct error *)malloc(sizeof(struct error));
+
 	va_list ap;
 
 	err->line = lnum;
-	err->next = NULL;
-
-	if (head == NULL) {
-		head = err;
-		tail = err;
-	} else {
-		head->next = err;
-		head = err;
-	}
 
 	/* initialize ptr to point to the first argument after the format string */
 	va_start(ap, msg1);
@@ -360,54 +369,106 @@ void add_error(char *msg1, ...) {
 	va_end(ap);
 
 	err->msg = msg;
+
+	push(errors, err);
 }
 
 void update_syms() {
 	struct item *tail = get_tail(symt);
-	struct item *extail = get_tail(extq);
-	struct item *entail = get_tail(entq);
 
-	/* update external symbols */
-	printf("source.ext\n---------------------\n");
-	while (extail != NULL) {
-		char *label = (char *)extail->pval;
-		struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
-		if ((sym = find_symbol(symt, label)) != NULL) {
-			struct item *head = get_head(sym->used);
-			printf("I am being used on %d\n", head->ival);
-			/*printf("%s %o\n", sym->name, sym->used[0]);*/
+	if (! is_empty(extq)) {
+		struct item *extail = get_tail(extq);
+
+		/* update external symbols */
+		while (extail != NULL) {
+			char *label = (char *)extail->data;
+			struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
+			if ((sym = find_symbol(symt, label)) != NULL) {
+				unsigned i;
+				for (i = 0; i < sym->num_used; i++)
+					sym->defined = 0;
+			}
+			extail = extail->next;
 		}
-		extail = extail->next;
 	}
 
 	/* update all symbols */
 	while (tail != NULL) {
-		struct symbol *sym = (struct symbol *)tail->pval;
+		struct symbol *sym = (struct symbol *)tail->data;
 		if (sym->type == 1)
 			/* it's a data symbol */
 			sym->defined += ic - 1;
-		/*if (! is_empty(sym->used)) {
-			struct codeln *line = find_codeln(sym->used[0]);
-			line->opcode = sym->defined;
-		/*}*/
+		if (sym->num_used > 0) {
+			unsigned i;
+			for (i = 0; i < sym->num_used; i++) {
+				struct codeln *line = find_codeln(sym->used[i]);
+				if (line != NULL) {
+					if (sym->defined == 0)
+						line->type = 'e';
+					line->opcode = sym->defined;
+				}
+			}
+		}
+		if (sym->defined < 0)
+			add_error(sym->name, " was not defined anywhere", "end");
 		tail = tail->next;
 	}
 
-	/* print entries */
-	printf("source.ent\n---------------------\n");
-	while (entail != NULL) {
-		char *label = (char *)entail->pval;
-		struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
-		if ((sym = find_symbol(symt, label)) != NULL)
-			printf("%s %o\n", sym->name, sym->defined);
-		entail = entail->next;
+	if (! is_empty(entq)) {
+		struct item *entail = get_tail(entq);
+
+		while (entail != NULL) {
+			char *label = (char *)entail->data;
+			struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
+			if ((sym = find_symbol(symt, label)) != NULL)
+				sym->entry = 1;
+			entail = entail->next;
+		}
+	}
+}
+
+void print_syms(char *name) {
+	if (! is_empty(extq)) {
+		FILE *of;
+		char *fname = (char *)malloc(MAXNAME);
+		strcpy(fname, name);
+		strcat(fname, ".ext");
+
+		if ((of = fopen(fname, "w")) == NULL)
+			add_error("can't open ", fname, "for writing", "end");
+		else {
+			unsigned i;
+			for (i = 0; i <= ic; i++) {
+				struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
+				if ((sym = find_symbol_used_in(symt, i)) != NULL && sym->defined == 0)
+					fprintf(of, "%s %o\n", sym->name, i);
+			}
+		}
+	}
+
+	if (! is_empty(entq)) {
+		FILE *of;
+		char *fname = (char *)malloc(MAXNAME);
+		strcpy(fname, name);
+		strcat(fname, ".ent");
+
+		if ((of = fopen(fname, "w")) == NULL)
+			add_error("can't open ", fname, "for writing", "end");
+		else {
+			unsigned i;
+			for (i = 0; i <= ic + dc; i++) {
+				struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
+				if ((sym = find_symbol_defined_in(symt, i)) != NULL && sym->entry)
+					fprintf(of, "%s %o\n", sym->name, sym->defined);
+			}
+		}
 	}
 }
 
 struct codeln *find_codeln(int num) {
 	struct item *tail = get_tail(cmdq);
 	while (tail != NULL) {
-		struct codeln *ln = (struct codeln *)tail->pval;
+		struct codeln *ln = (struct codeln *)tail->data;
 		if (ln->num == num)
 			return ln;
 		tail = tail->next;
@@ -415,29 +476,36 @@ struct codeln *find_codeln(int num) {
 	return NULL;
 }
 
-void print_cmdq() {
-	struct item *tail = get_tail(cmdq);
-	printf("source.ps\n------------------\n");
-	while (tail != NULL) {
-		struct codeln *data = (struct codeln *)tail->pval;
-		printf("%.4o ", data->num);
-		if (data->imm)
-			printf("%.6o\n", data->opcode);
-		else
-			printf("%.2o%.1o%.1o%.1o%.1o\n", data->opcode, data->src_t, data->src_reg, data->dest_t, data->dest_reg);
-		tail = tail->next;
-	}
-}
+void print_ob(char *name) {
+	FILE *of;
+	struct item *cmdtail = get_tail(cmdq);
+	struct item *cmdhead = get_head(cmdq);
+	struct item *datatail = get_tail(dataq);
+	struct codeln *dt = (struct codeln *)cmdhead->data;
+	char *fname = (char *)malloc(MAXNAME);
 
-void print_dataq() {
-	struct item *head = get_head(cmdq);
-	struct item *tail = get_tail(dataq);
-	struct codeln *dt = (struct codeln *)head->pval;
+	strcpy(fname, name);
+	strcat(fname, ".ob");
 
-	while (tail != NULL) {
-		struct dataln *ln = (struct dataln *)tail->pval;
-		printf("%.4o %.6o\n", ln->num + dt->num, ln->data);
-		tail = tail->next;
+	if ((of = fopen(fname, "w")) == NULL)
+		add_error("can't open ", fname, " for writing", "end");
+	else {
+		fprintf(of, "%o %o\n", ic, dc);
+		while (cmdtail != NULL) {
+			struct codeln *data = (struct codeln *)cmdtail->data;
+			fprintf(of, "%.4o ", data->num);
+			if (data->imm)
+				fprintf(of, "%.6o %c\n", data->opcode, data->type);
+			else
+				fprintf(of, "%.2o%.1o%.1o%.1o%.1o %c\n", data->opcode, data->src_t, data->src_reg, data->dest_t, data->dest_reg, data->type);
+			cmdtail = cmdtail->next;
+		}
+
+		while (datatail != NULL) {
+			struct dataln *ln = (struct dataln *)datatail->data;
+			fprintf(of, "%.4o %.6o\n", ln->num + dt->num, ln->data);
+			datatail = datatail->next;
+		}
 	}
 }
 
