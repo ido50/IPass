@@ -131,76 +131,92 @@ void _parse_words() {
 		struct item *next = shift(wordq);
 		char *word = (char *)next->data;
 		if (is_cmd(word)) {
-			/* check cmd name is legal */
+			/* this word defines a command, check if it's valid, and if so, get the operands */
 			if (legal_cmd(word) == 0)
 				_add_error(word, " is not a valid command", "end");
 			else {
-				/* get operands and check that they are legal */
-				/* do something with the label */
-				int expect_comma = 0;
-				struct command *cmd = find_cmd(word);
-				struct codeln *cmdln = _new_codeln(cmd->code);
-				cmdln->type = 'a'; /* useless as it's the default */
+				/* get the operands and treat a label, if was defined in this line */
 
+				int expect_comma = 0;					/* if two operands, set to true */
+				struct command *cmd = find_cmd(word);			/* the command's object */
+
+				/* create a new command line with the commands code (which is the line's opcode) */
+				struct codeln *cmdln = _new_codeln(cmd->code);
+
+				/* push it to the command queue */
 				push(cmdq, cmdln);
 
 				if (cmd->src_op && cmd->dest_op)
+					/* two operands expected, so a comma is also expected */
 					expect_comma = 1;
 
 				if (cmd->src_op) {
+					/* retrieve the source operand and parse it */
 					_get_operand(cmdln, cmd, "src", 0);
 				}
 				if (cmd->dest_op) {
+					/* retrieve the destination operand and parse it */
 					_get_operand(cmdln, cmd, "dest", expect_comma);
 				}
 
+				/* treat the label, if any */
 				_treat_label(label, cmdln->num, 0);
 			}
 		} else if (is_data_inst(word)) {
-			/* get data and check that it's legal */
-			int i = 0;
+			/* this is a ".data." instruction, so get the data */
+
+			int i = 0;	/* counter for the number of numbers that will be added to the data queue */
 
 			if (is_empty(wordq))
 				_add_error("no data given", "end");
 			else {
-				int expect_num = 1;
-				int expect_comma = 0;
+				int expect_num = 1;		/* currently expecting a number */
+				int expect_comma = 0;		/* not expecting a comma (or end of line) right now, but maybe later */
 
 				while (! is_empty(wordq)) {
 					struct item *next = shift(wordq);
 					char *data = (char *)next->data;
 
 					if (expect_num && ! is_num(data))
+						/* not a valid number */
 						_add_error(data, " is not a valid number", "end");
 					else if (expect_num) {
 						i++;
-						/* do something with this number */
+						/* got a number, push it to the data queue */
 						push(dataq, _new_dataln(atoi(data), dc + i));
+	
+						/* now expecting a comma (or end of line) */
 						expect_comma = 1;
 						expect_num = 0;
 					} else if (expect_comma && ! is_comma(data)) {
-						/* check if there are no more words */
+						/* expected a comma or end of line but didn't get any */
 						if (! is_empty(wordq)) {
 							_add_error("i was expecting a comma or end of line", "end");
 							expect_num = 0;
 							expect_comma = 0;
 						}
 					} else if (expect_comma) {
+						/* got a comma, now expecting another number */
 						expect_num = 1;
 						expect_comma = 0;
 						if (is_empty(wordq))
+							/* expecting a number, but queue is empty, add error */
 							_add_error("no number given after comma", "end");
 					}
 				}
 			}
 
 			if (i > 0)
+				/* data was inserted to the queue, so treat the line's label, if any */
 				_treat_label(label, dc + 1, 1);
+
+			/* increase the data counter by the number of numbers inserted to the queue */
 			dc += i;
 		} else if (is_string_inst(word)) {
-			/* get string and check that it's legal */
+			/* this is a ".string" instruction, so get the string */
+
 			struct item *next = shift(wordq);
-			int i = 0;
+			int i = 0;	/* counter for the number of characters in the string that will be inserted to the data queue */
 
 			if (next == NULL)
 				_add_error("no string given", "end");
@@ -215,19 +231,24 @@ void _parse_words() {
 					/* code that string */
 					while (*str != '\0') {
 						i++;
+						/* push the characters ascii code to the data queue */
 						push(dataq, _new_dataln(*str, dc+i));
 						str++;
 					}
+					/* push 0 to the data queue to denote the end of the string */
 					push(dataq, _new_dataln(0, dc + ++i));
 				} else
 					_add_error(string, " is not a valid string", "end");
 			}
 
 			if (i > 0)
+				/* a string was inserted, treat the line's label, if any */
 				_treat_label(label, dc + 1, 1);
+
+			/* increase the data counter by the number of chars inserted to the data queue */
 			dc += i;
 		} else if (is_entry(word) || is_extern(word)) {
-			/* get a label and check it exists */
+			/* this is an entry of extern defintion, take the label name and add it to the appropriate queue */
 			struct item *lbl = shift(wordq);
 			if (lbl == NULL)
 				_add_error("missing label name", "end");
@@ -239,6 +260,7 @@ void _parse_words() {
 					push(extq, label);
 			}
 		} else
+			/* word was not recognized, add an error */
 			_add_error("unrecognized word \"", word, "\"", "end");
 	}
 }
@@ -267,6 +289,12 @@ char *_get_label() {
 }
 
 void _get_operand(struct codeln *cmdln, struct command *cmd, char *srcdst, int expect_comma) {
+	/* shifts a word from the word queue, expecting an operand (or comma). also calculates
+	   the operands addressing method and validates that it is actually allowed by the current command */
+
+	/* cmdln is the current command line, cmd is the current command */
+	/* srcdst represents if we're expecting a source or destination operand */
+
 	if (is_empty(wordq))
 		/* no operand */
 		_add_error(srcdst, " operand is missing", "end");
@@ -274,6 +302,7 @@ void _get_operand(struct codeln *cmdln, struct command *cmd, char *srcdst, int e
 		if (expect_comma) {
 			struct item *opword = shift(wordq);
 			if (! is_comma((char *)opword->data)) {
+				/* was expecting comma, didn't get any, add word back to the queue and add error */
 				unshift(wordq, opword);
 				_add_error("missing comma between operands", "end");
 			}
@@ -282,43 +311,57 @@ void _get_operand(struct codeln *cmdln, struct command *cmd, char *srcdst, int e
 		if (is_empty(wordq))
 			_add_error(srcdst, " operand is missing", "end");
 		else {
-			int type;
+			int type;				/* will hold operand's addressing method */
 			struct item *opword = shift(wordq);
 			char *name = (char *)opword->data;
 			type = op_type(name);
 
+			/* update the command line with the operand's addressing method */
 			_add_type(cmdln, srcdst, type);
 
 			if (! _allowed(cmd, srcdst, type))
+				/* this addressing method is not allowed for this command, add an error */
 				_add_error(cmd->name, " does not allow ", _address_name(type), " addressing", "end");
 
 			if (type == DIR || type == INDIR) {
+				/* this operand is a direct or indirect symbol */
+
+				/* create a code line for this operand */
 				struct codeln *opln = _new_codeln(0);
 				struct symbol *sym = (struct symbol *)malloc(sizeof(struct symbol));
-				opln->imm = 1;
-				opln->type = 'r';
+				opln->imm = 1;		/* operand has an immediate value (the line where the symbol was defined) */
+				opln->type = 'r';	/* operand line is relocatable */
 
 				if (type == INDIR)
 					/* increase to get rid of the @ sign */
 					name++;
 
 				if ((sym = find_symbol(symt, name)) != NULL)
+					/* symbol was already defined, add this line to its 'used' array */
 					update_used(sym, opln->num);
 				else
+					/* new symbol, add it to the table */
 					push(symt, new_symbol(name, -1, opln->num, 0));
+
+				/* push operand's line to the command queue */
 				push(cmdq, opln);
 			} else if (type == IMM) {
+				/* this is an immediate value, like #+5 */
+
+				/* create a new code line for this value */
 				struct codeln *opln = _new_codeln(0);
-				opln->imm = 1;
-				opln->type = 'a'; /* useless as it's the default */
+				opln->imm = 1;		/* operand has an immediate value */
 
 				/* increase to get rid of the # sign */
 				opln->opcode = atoi(++name);
 
+				/* push operand's line to the command line */
 				push(cmdq, opln);
 			} else {
-				/* DIRREG */
-				/* increase to get rid of the 'r' char */
+				/* DIRREG - this is a direct register name */
+
+				/* add register to the command's line src/dest register,
+				  but first increase the name to get rid of the 'r' char */
 				_add_register(cmdln, srcdst, atoi(++name));
 			}
 		}

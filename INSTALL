@@ -1,0 +1,3 @@
+To start using ipass, simply run 'make' inside the application's root directory.
+
+To install it, run 'make install'. To uninstall, run 'make uninstall'.

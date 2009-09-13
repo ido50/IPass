@@ -1,3 +1,4 @@
+/* a code line (that will be printed into the output object file */
 struct codeln {
 	int opcode;		/* the line's opcode (or complete code if not a command line) */
 	int src_t;		/* the line's source type */
@@ -9,9 +10,10 @@ struct codeln {
 	char type;		/* the type of the line ('a' for absolute, 'e' for external and 'r' for relocatable) */
 };
 
+/* a data line (that will be printed into the output object file */
 struct dataln {
-	int num;
-	int data;
+	int num;		/* the number of the line in the output file */
+	int data;		/* the value of the line */
 };
 
 struct codeln *_new_codeln(int);

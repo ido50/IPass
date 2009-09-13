@@ -1,20 +1,28 @@
-#define NUMCMDS 16
-#define IMM 0
-#define DIR 1
-#define INDIR 3
-#define DIRREG 4
-#define MAXLINE 80
-#define MAXLABEL 30
-#define MAXNAME 25
-#define MAXMSG 80
+#define NUMCMDS 16		/* number of commands defined by the language */
+#define IMM 0			/* immediate addressing */
+#define DIR 1			/* direct addressing */
+#define INDIR 3			/* indirect addressing */
+#define DIRREG 4		/* direct register addressing */
+#define MAXLINE 80		/* maximum length of a line in the source file */
+#define MAXLABEL 30		/* maximum length of a label name */
+#define MAXNAME 40		/* maximum length of a source file name */
+#define MAXMSG 80		/* maximum length of an error message */
 
+/**
+ * Assembles an assembly file represented by a name
+ * 
+ * @param name - the name of the file (without the ".as" extension)
+ * @return	pointer to the errors queue (even if no errors where encountered)
+ */
 struct queue *assemble(char *);
 
+/* an error message */
 struct error {
-	char *msg;
-	unsigned line;
+	char *msg;		/* the error message */
+	unsigned line;		/* the line in the source file that invoked it */
 };
 
+/* a standard assembly command */
 struct command {
 	char name[3];			/* the command's name */
 	unsigned code;			/* the command's code */
