@@ -8,7 +8,7 @@
 
 struct command {
 	char name[3];
-	unsigned short code;
+	unsigned code;
 	unsigned short src_op;
 	unsigned short dest_op;
 	unsigned short src_imm;
@@ -23,8 +23,8 @@ struct command {
 
 void init_cmds();
 struct command *find_cmd(char *);
-void break_line(char *, int);
-void parse_line(int);
+void break_line(char *);
+void parse_line();
 int parse_word(char *);
 int legal_word(char *, unsigned short);
 
@@ -45,8 +45,16 @@ int is_register(char *);
 int legal_register(char *);
 char *label_name(char *);
 
-unsigned short op_type(char *name);
+int op_type(char *name);
 
 extern struct command commands[NUMCMDS];
 
-void print_queue();
+void update_syms();
+void print_cmdq();
+void print_dataq();
+
+void _treat_label(char *, unsigned, int);
+int allowed(struct command *, char *, int);
+char *_get_label();
+char *address_name(int);
+void print_commands();

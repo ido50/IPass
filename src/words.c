@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include "assembly.h"
 
-unsigned short op_type(char *name) {
+int op_type(char *name) {
 	if (is_inum(name))
 		return IMM;
 	else if (is_register(name))
