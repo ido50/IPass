@@ -9,7 +9,6 @@
 #define MAXMSG 80
 
 struct queue *assemble(char *);
-void add_error(char *, ...);
 
 struct error {
 	char *msg;
@@ -17,25 +16,30 @@ struct error {
 };
 
 struct command {
-	char name[3];
-	unsigned code;
-	unsigned short src_op;
-	unsigned short dest_op;
-	unsigned short src_imm;
-	unsigned short src_dir;
-	unsigned short src_indir;
-	unsigned short src_dirreg;
-	unsigned short dest_imm;
-	unsigned short dest_dir;
-	unsigned short dest_indir;
-	unsigned short dest_dirreg;
+	char name[3];			/* the command's name */
+	unsigned code;			/* the command's code */
+	unsigned short src_op;		/* true if this command expects a source operand */
+	unsigned short dest_op;		/* true if this command expects a destination operand */
+	unsigned short src_imm;		/* true if accepts immediate addressing in the source */
+	unsigned short src_dir;		/* true if accepts direct addressing in the source */
+	unsigned short src_indir;	/* true if accepts indirect addressing in the source */
+	unsigned short src_dirreg;	/* true if accepts direct register addressing in the source */
+	unsigned short dest_imm;	/* true if accepts immediate addressing in the destination */
+	unsigned short dest_dir;	/* true if accepts direct addressing in the destination */
+	unsigned short dest_indir;	/* true if accepts indirect addressing in the destination */
+	unsigned short dest_dirreg;	/* true if accepts direct register addressing in the destination */
 };
 
-void init_cmds();
+/**
+ * Finds and returns a command in the command list according to name
+ * 
+ * @param name - the name of the command
+ * @return	the command structure if found, NULL otherwise
+ */
 struct command *find_cmd(char *);
-void break_line(char *);
-void parse_line();
-int parse_word(char *);
+
+void _break_line(char *);
+void _parse_words();
 int legal_word(char *, unsigned short);
 
 int is_num(char *);
@@ -54,17 +58,17 @@ int is_extern(char *);
 int is_register(char *);
 int legal_register(char *);
 char *label_name(char *);
-
 int op_type(char *name);
 
 extern struct command commands[NUMCMDS];
 
-void update_syms();
-void print_syms(char *);
-void print_ob(char *);
+void _update_syms();
+void _print_syms(char *);
+void _print_ob(char *);
 
 void _treat_label(char *, unsigned, int);
-int allowed(struct command *, char *, int);
+int _allowed(struct command *, char *, int);
 char *_get_label();
-char *address_name(int);
-void print_commands();
+char *_address_name(int);
+void _print_commands();
+void _add_error(char *, ...);

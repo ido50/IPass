@@ -1,24 +1,22 @@
 struct codeln {
-	int opcode;
-	int src_t;
-	int src_reg;
-	int dest_t;
-	int dest_reg;
-	int num;
-	int imm;
-	char type;
+	int opcode;		/* the line's opcode (or complete code if not a command line) */
+	int src_t;		/* the line's source type */
+	int src_reg;		/* the line's source register */
+	int dest_t;		/* the line's destination type */
+	int dest_reg;		/* the line's destination register */
+	int num;		/* the line's number in the output file */
+	int imm;		/* true if line represents an immediate value */
+	char type;		/* the type of the line ('a' for absolute, 'e' for external and 'r' for relocatable) */
 };
-
-struct codeln *new_codeln(int);
 
 struct dataln {
 	int num;
 	int data;
 };
 
-struct dataln *new_dataln(int, int);
-
-struct codeln *find_codeln(int);
+struct codeln *_new_codeln(int);
+struct dataln *_new_dataln(int, int);
+struct codeln *_find_codeln(int);
 
 void _get_operand(struct codeln *, struct command *, char *, int);
 void _add_register(struct codeln *, char *, int);
