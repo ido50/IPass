@@ -1,0 +1,12 @@
+This is the terminal output from running ipass on the simple_fail.as file:
+
+tests/simple_fail.as: the following errors were encountered:
+tests/simple_fail.as:[1] unrecognized word ";"
+tests/simple_fail.as:[2] 1AIN is not a valid label.
+tests/simple_fail.as:[2] missing comma between operands
+tests/simple_fail.as:[4] dest operand is missing
+tests/simple_fail.as:[5] lec is not a valid command
+tests/simple_fail.as:[14] unrecognized word ".entri"
+tests/simple_fail.as:[15] "abcdef is not a valid string
+tests/simple_fail.as:[16] no number given after comma
+tests/simple_fail.as:[17] NON was not defined anywhere
